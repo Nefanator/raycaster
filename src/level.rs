@@ -7,7 +7,6 @@ use std::{
 
 use glam::{Vec2, Vec3};
 
-pub type WallId = usize;
 pub type SectorId = usize;
 
 #[derive(Default, Serialize, Deserialize)]
@@ -63,7 +62,7 @@ impl LevelState {
         &self.sectors
     }
 
-    pub fn load<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+    pub fn _load<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let file = File::open(path)?;
         let reader = BufReader::new(file);
         let level = serde_json::from_reader(reader)?;
@@ -71,7 +70,7 @@ impl LevelState {
         Ok(level)
     }
 
-    pub fn save<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
+    pub fn _save<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
         let file = File::create(path)?;
         let writer = BufWriter::new(file);
         serde_json::to_writer_pretty(writer, self)?;
@@ -79,12 +78,7 @@ impl LevelState {
     }
 
     pub fn find_current_sector(&self, pos: Vec2) -> Option<&Sector> {
-        for sector in self.sectors() {
-            if sector.contains(pos) {
-                return Some(sector);
-            }
-        }
-        None
+        self.sectors().iter().find(|&sector| sector.contains(pos))
     }
 }
 
@@ -105,10 +99,7 @@ impl Sector {
     pub fn walls(&self) -> Vec<(Vec2, Vec2, Vec3)> {
         self.lines
             .iter()
-            .filter(|line| match line.wall_type {
-                Wall::Solid(_) => true,
-                _ => false,
-            })
+            .filter(|line| matches!(line.wall_type, Wall::Solid(_)))
             .map(|line| {
                 if let Wall::Solid(color) = line.wall_type {
                     (
@@ -117,7 +108,7 @@ impl Sector {
                         color,
                     )
                 } else {
-                    panic!()
+                    panic!() // todo: yeah...
                 }
             })
             .collect()

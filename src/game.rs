@@ -81,7 +81,7 @@ impl GameState {
         let norm_xy_look = self.rot.xy().normalize();
         let corrected_move_vec = norm_xy_look.rotate(move_vec);
 
-        self.pos = self.pos + scale(corrected_move_vec, delta);
+        self.pos += scale(corrected_move_vec, delta);
     }
 }
 

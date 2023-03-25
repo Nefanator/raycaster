@@ -1,5 +1,4 @@
 use crate::{
-    game,
     primitives::{CricleDescriptor, LineDescriptor, VerticalLineDescriptor},
 };
 
@@ -153,7 +152,7 @@ impl State {
 
             // todo: check the color format first
             let rgba_offset = pixel_offset * 4;
-            self.canvas[rgba_offset + 0] = (colour >> 24) as u8;
+            self.canvas[rgba_offset] = (colour >> 24) as u8;
             self.canvas[rgba_offset + 1] = (colour >> 16) as u8;
             self.canvas[rgba_offset + 2] = (colour >> 8) as u8;
             self.canvas[rgba_offset + 3] = colour as u8;
@@ -294,7 +293,7 @@ impl State {
             let alpha_channel = (255.0 * line.color[3]) as u8;
 
             if self.canvas[rgba_offset + 3] < alpha_channel {
-                self.canvas[rgba_offset + 0] = blue_channel;
+                self.canvas[rgba_offset] = blue_channel;
                 self.canvas[rgba_offset + 1] = green_channel;
                 self.canvas[rgba_offset + 2] = red_channel;
                 self.canvas[rgba_offset + 3] = alpha_channel;
@@ -313,7 +312,7 @@ impl State {
         for y in min_y..max_y {
             for x in min_x..max_x {
                 let distance = circle.centre.distance(Vec2::new(x as f32, y as f32));
-                let intensity = (circle.radius - distance) / circle.radius;
+                let _intensity = (circle.radius - distance) / circle.radius;
                 if distance < circle.radius {
                     self.plot_with_opacity(x, y, 128, 128, 128, 0.5);
                 }
@@ -335,7 +334,7 @@ impl State {
     fn plot(&mut self, x: u32, y: u32, color: Vec3) {
         let pixel_offset = (x + y * self.size.width) as usize;
         let rgba_offset = pixel_offset * 4;
-        self.canvas[rgba_offset + 0] = (color[2] * 255.0) as u8;
+        self.canvas[rgba_offset] = (color[2] * 255.0) as u8;
         self.canvas[rgba_offset + 1] = (color[1] * 255.0) as u8;
         self.canvas[rgba_offset + 2] = (color[0] * 255.0) as u8;
     }
@@ -344,7 +343,7 @@ impl State {
         let pixel_offset = (x + y * self.size.width) as usize;
         let rgba_offset = pixel_offset * 4;
 
-        self.canvas[rgba_offset + 0] = blend(self.canvas[rgba_offset + 0], b, opacity);
+        self.canvas[rgba_offset] = blend(self.canvas[rgba_offset], b, opacity);
         self.canvas[rgba_offset + 1] = blend(self.canvas[rgba_offset + 1], g, opacity);
         self.canvas[rgba_offset + 2] = blend(self.canvas[rgba_offset + 2], r, opacity);
     }
@@ -357,25 +356,6 @@ fn blend(current: u8, new: u8, opacity: f32) -> u8 {
     let hdr_color = current + new;
 
     255.0_f32.min(hdr_color) as u8
-}
-
-fn pos_to_offset(pos: glam::Vec2, size: PhysicalSize<u32>) -> Option<usize> {
-    if pos.x < 0.0 || pos.y < 0.0 {
-        return None;
-    }
-    if pos.x > size.width as f32 || pos.y > size.height as f32 {
-        return None;
-    }
-
-    Some((pos.x + pos.y * size.width as f32) as usize)
-}
-
-fn per_pixel(x: f32, y: f32) -> u32 {
-    let r = (x * 255.0) as u8;
-    let g = (y * 255.0) as u8;
-    let b = 0;
-
-    u32::from_be_bytes([b, g, r, 0])
 }
 
 fn create_transform(pos: Vec2, rot: Vec3) -> Mat3 {
@@ -404,7 +384,7 @@ fn intersection_distance(origin: Vec2, direction: Vec2, start: Vec2, end: Vec2) 
     let t1 = v2.cross(v1).z / dot;
     let t2 = v1.dot(v3) / dot;
 
-    if t1 >= 0.0 && (t2 >= 0.0 && t2 <= 1.0) {
+    if t1 >= 0.0 && (0.0..=1.0).contains(&t2) {
         return Some(t1);
     }
 

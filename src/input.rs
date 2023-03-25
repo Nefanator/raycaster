@@ -35,15 +35,6 @@ impl InputState {
         self.rot_right = movement;
     }
 
-    pub fn clear(&mut self) {
-        self.forward = false;
-        self.backward = false;
-        self.left = false;
-        self.right = false;
-        self.rot_left = false;
-        self.rot_right = false;
-    }
-
     pub fn move_vec(&self) -> Vec2 {
         let mut vec = Vec2::ZERO;
         vec.x += if self.forward { 1.0 } else { 0.0 };
