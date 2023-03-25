@@ -53,7 +53,7 @@ impl LevelState {
                     },
                 ],
                 base_height: 0.0,
-                height: 2.0,
+                height: 2.5,
             }],
         }
     }

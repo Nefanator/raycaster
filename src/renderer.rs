@@ -214,6 +214,7 @@ impl State {
 
         let fov_y = PI / 2.0;
         let render_distance = 2.0;
+        let player_height = 1.5;
         let half_canvas_height = self.size.height as f32 / 2.0;
 
         if let Some(current_sector) = game_state.find_current_sector() {
@@ -230,9 +231,9 @@ impl State {
                         if corrected_distance > render_distance {
                             continue;
                         }
-                        let perceived_height = current_sector.height() / corrected_distance * 100.0;
+                        let perceived_height = (current_sector.height()) / corrected_distance * 100.0;
                         let perceived_base_height =
-                            current_sector.base_height() / corrected_distance * 100.0;
+                            (current_sector.base_height() - player_height) / corrected_distance * 100.0;
 
                         let color = wall.2 * (1.0 - (corrected_distance / render_distance)).max(0.0);
 
@@ -240,7 +241,7 @@ impl State {
                             y,
                             top_x: (half_canvas_height - perceived_height - perceived_base_height)
                                 as u32,
-                            bottom_x: (half_canvas_height - perceived_base_height) as u32,
+                            bottom_x: (half_canvas_height - perceived_base_height).min(self.size.height as f32) as u32,
                             color: color.extend(1000.0 / corrected_distance),
                         })
                     }
