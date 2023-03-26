@@ -1,12 +1,12 @@
 use crate::{
-    primitives::{CricleDescriptor, LineDescriptor, VerticalLineDescriptor},
+    primitives::{CricleDescriptor, LineDescriptor, VerticalLineDescriptor}, level::{SectorId, Sector},
 };
 
 use std::{
     cmp::{max, min},
     f32::consts::PI,
     num::NonZeroU32,
-    ops::Neg,
+    ops::{Neg},
 };
 
 use glam::{Mat3, Vec2, Vec3, Vec3Swizzles};
@@ -214,40 +214,78 @@ impl State {
 
         let fov_y = PI / 2.0;
         let render_distance = 2.0;
-        let player_height = 1.5;
-        let half_canvas_height = self.size.height as f32 / 2.0;
+        let mut player_height = 1.5;
+
+        let mut additional_sectors = Vec::<SectorId>::new();
+        let mut sector_index = 0;
 
         if let Some(current_sector) = game_state.find_current_sector() {
-            for y in 0..(self.size.width) {
-                let ray_angle = -((y as f32 / self.size.width as f32) * 2.0 - 1.0) * fov_y / 2.0;
+            player_height += game_state.level().sector(current_sector).base_height();
+            additional_sectors.push(current_sector);
+        }
+        loop {
+            if additional_sectors.len() == sector_index {
+                break;
+            }
+            let sector = game_state.level().sector(additional_sectors[sector_index]);
 
-                let ray = Mat3::from_axis_angle(Vec3::Z, ray_angle).transform_vector2(Vec2::Y);
+            let portal_sectors = self.draw_sector(sector, transform, fov_y, render_distance, player_height);
 
-                for wall in current_sector.walls() {
-                    let start = transform.transform_point2(wall.0);
-                    let end = transform.transform_point2(wall.1);
-                    if let Some(distance) = intersection_distance(Vec2::ZERO, ray, start, end) {
-                        let corrected_distance = (distance * ray_angle.cos()).max(0.0);
-                        if corrected_distance > render_distance {
-                            continue;
-                        }
-                        let perceived_height = (current_sector.height()) / corrected_distance * 100.0;
-                        let perceived_base_height =
-                            (current_sector.base_height() - player_height) / corrected_distance * 100.0;
-
-                        let color = wall.2 * (1.0 - (corrected_distance / render_distance)).max(0.0);
-
-                        self.draw_vertical_line(&VerticalLineDescriptor {
-                            y,
-                            top_x: (half_canvas_height - perceived_height - perceived_base_height)
-                                as u32,
-                            bottom_x: (half_canvas_height - perceived_base_height).min(self.size.height as f32) as u32,
-                            color: color.extend(1000.0 / corrected_distance),
-                        })
-                    }
+            for sector_id in portal_sectors {
+                if !additional_sectors.contains(&sector_id) {
+                    additional_sectors.push(sector_id);
                 }
             }
+            sector_index += 1;
         }
+    }
+
+    fn draw_sector(&mut self, sector: &Sector, transform: Mat3, fov_y: f32, render_distance: f32, player_height: f32) -> Vec<SectorId> {
+        let mut additional_sectors = Vec::<SectorId>::new();
+        let half_canvas_height = self.size.height as f32 / 2.0;
+
+        for y in 0..(self.size.width) {
+            let ray_angle = -((y as f32 / self.size.width as f32) * 2.0 - 1.0) * fov_y / 2.0;
+
+            let ray = Mat3::from_axis_angle(Vec3::Z, ray_angle).transform_vector2(Vec2::Y);
+
+            for portal in sector.portals() {
+                let start = transform.transform_point2(portal.0);
+                let end = transform.transform_point2(portal.1);
+                if intersection_distance(Vec2::ZERO, ray, start, end).is_some() {
+                    if !additional_sectors.contains(&portal.2) {
+                        additional_sectors.push(portal.2);
+                    }
+                    break;
+                }                    
+            }
+
+            for wall in sector.walls() {
+                let start = transform.transform_point2(wall.0);
+                let end = transform.transform_point2(wall.1);
+                if let Some(distance) = intersection_distance(Vec2::ZERO, ray, start, end) {
+                    let corrected_distance = (distance * ray_angle.cos()).max(0.0);
+                    if corrected_distance > render_distance {
+                        continue;
+                    }
+                    let perceived_height = (sector.height()) / corrected_distance * 200.0;
+                    let perceived_base_height =
+                        (sector.base_height() - player_height) / corrected_distance * 200.0;
+
+                    let color = wall.2 * (1.0 - (corrected_distance / render_distance)).max(0.0);
+
+                    self.draw_vertical_line(&VerticalLineDescriptor {
+                        y,
+                        top_x: (half_canvas_height - perceived_height - perceived_base_height)
+                            as u32,
+                        bottom_x: (half_canvas_height - perceived_base_height).min(self.size.height as f32) as u32,
+                        color: color.extend(1000.0 / corrected_distance),
+                    })
+                }
+            }
+        }   
+
+        additional_sectors
     }
 
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {

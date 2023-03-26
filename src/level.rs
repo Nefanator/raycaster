@@ -17,49 +17,87 @@ pub struct LevelState {
 impl LevelState {
     pub fn demo() -> Self {
         Self {
-            sectors: vec![Sector {
-                points: vec![
-                    Vec2::new(-1.0, -1.0),
-                    Vec2::new(-1.0, 0.5),
-                    Vec2::new(-0.5, 1.0),
-                    Vec2::new(1.0, 1.0),
-                    Vec2::new(1.0, -1.0),
-                ],
-                lines: vec![
-                    Line {
-                        wall_type: Wall::Solid(Vec3::new(1.0, 0.0, 0.0)),
-                        point_1_id: 0,
-                        point_2_id: 1,
-                    },
-                    Line {
-                        wall_type: Wall::Solid(Vec3::new(1.0, 1.0, 0.0)),
-                        point_1_id: 1,
-                        point_2_id: 2,
-                    },
-                    Line {
-                        wall_type: Wall::Solid(Vec3::new(0.0, 1.0, 1.0)),
-                        point_1_id: 2,
-                        point_2_id: 3,
-                    },
-                    Line {
-                        wall_type: Wall::Solid(Vec3::new(1.0, 0.0, 1.0)),
-                        point_1_id: 3,
-                        point_2_id: 4,
-                    },
-                    Line {
-                        wall_type: Wall::Solid(Vec3::new(0.0, 0.0, 1.0)),
-                        point_1_id: 4,
-                        point_2_id: 0,
-                    },
-                ],
-                base_height: 0.0,
-                height: 2.5,
-            }],
+            sectors: vec![
+                Sector {
+                    points: vec![
+                        Vec2::new(-1.0, -1.0),
+                        Vec2::new(-1.0, 0.5),
+                        Vec2::new(-0.5, 1.0),
+                        Vec2::new(1.0, 1.0),
+                        Vec2::new(1.0, -1.0),
+                    ],
+                    lines: vec![
+                        Line {
+                            wall_type: Wall::Solid(Vec3::new(1.0, 0.0, 0.0)),
+                            point_1_id: 0,
+                            point_2_id: 1,
+                        },
+                        Line {
+                            wall_type: Wall::Portal(1),
+                            point_1_id: 1,
+                            point_2_id: 2,
+                        },
+                        Line {
+                            wall_type: Wall::Solid(Vec3::new(0.0, 1.0, 1.0)),
+                            point_1_id: 2,
+                            point_2_id: 3,
+                        },
+                        Line {
+                            wall_type: Wall::Solid(Vec3::new(1.0, 0.0, 1.0)),
+                            point_1_id: 3,
+                            point_2_id: 4,
+                        },
+                        Line {
+                            wall_type: Wall::Solid(Vec3::new(0.0, 0.0, 1.0)),
+                            point_1_id: 4,
+                            point_2_id: 0,
+                        },
+                    ],
+                    base_height: 0.0,
+                    height: 2.5,
+                },
+                Sector {
+                    points: vec![
+                        Vec2::new(-1.0, 0.5),
+                        Vec2::new(-1.5, 1.5),
+                        Vec2::new(-0.5, 2.0),
+                        Vec2::new(-0.5, 1.0),
+                    ],
+                    lines: vec![
+                        Line {
+                            wall_type: Wall::Solid(Vec3::new(1.0, 0.0, 0.0)),
+                            point_1_id: 0,
+                            point_2_id: 1,
+                        },
+                        Line {
+                            wall_type: Wall::Solid(Vec3::new(1.0, 1.0, 0.0)),
+                            point_1_id: 1,
+                            point_2_id: 2,
+                        },
+                        Line {
+                            wall_type: Wall::Solid(Vec3::new(0.0, 1.0, 1.0)),
+                            point_1_id: 2,
+                            point_2_id: 3,
+                        },
+                        Line {
+                            wall_type: Wall::Portal(0),
+                            point_1_id: 3,
+                            point_2_id: 0,
+                        },
+                    ],
+                    base_height: 1.0,
+                    height: 2.5,
+                },
+            ],
         }
     }
 
     pub fn sectors(&self) -> &Vec<Sector> {
         &self.sectors
+    }
+
+    pub fn sector(&self, index: usize) -> &Sector {
+        &self.sectors[index]
     }
 
     pub fn _load<P: AsRef<Path>>(path: P) -> io::Result<Self> {
@@ -77,8 +115,8 @@ impl LevelState {
         Ok(())
     }
 
-    pub fn find_current_sector(&self, pos: Vec2) -> Option<&Sector> {
-        self.sectors().iter().find(|&sector| sector.contains(pos))
+    pub fn find_current_sector(&self, pos: Vec2) -> Option<SectorId> {
+        self.sectors().iter().position(|sector| sector.contains(pos))
     }
 }
 
@@ -114,6 +152,24 @@ impl Sector {
             .collect()
     }
 
+    pub fn portals(&self) -> Vec<(Vec2, Vec2, SectorId)> {
+        self.lines
+            .iter()
+            .filter(|line| matches!(line.wall_type, Wall::Portal(_)))
+            .map(|line| {
+                if let Wall::Portal(sector_id) = line.wall_type {
+                    (
+                        self.points[line.point_1_id],
+                        self.points[line.point_2_id],
+                        sector_id,
+                    )
+                } else {
+                    panic!() // todo: yeah...
+                }
+            })
+            .collect()
+    }
+
     pub fn height(&self) -> f32 {
         self.height
     }
@@ -123,9 +179,11 @@ impl Sector {
     }
 
     fn contains(&self, pos: Vec2) -> bool {
-        for wall in self.walls() {
-            let seg = (wall.0 - wall.1).extend(0.0).normalize();
-            let point = (pos - wall.1).extend(0.0).normalize();
+        for p_index in 0..self.points.len() {
+            let p1 = self.points[p_index];
+            let p2 = self.points[(p_index + 1) % self.points.len()];
+            let seg = (p1 - p2).extend(0.0).normalize();
+            let point = (pos - p2).extend(0.0).normalize();
 
             if seg.cross(point).z < 0.0 {
                 return false;

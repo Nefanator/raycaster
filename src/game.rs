@@ -2,7 +2,7 @@
 use glam::{Vec2, Vec3, Vec3Swizzles};
 use winit::event::{KeyboardInput, VirtualKeyCode, WindowEvent, ElementState};
 
-use crate::{input::InputState, level::{LevelState, Sector}};
+use crate::{input::InputState, level::{LevelState, SectorId}};
 
 pub struct GameState {
     pos: Vec2,
@@ -36,7 +36,7 @@ impl GameState {
         &self.level
     }
 
-    pub fn find_current_sector(&self) -> Option<&Sector> {
+    pub fn find_current_sector(&self) -> Option<SectorId> {
         self.level().find_current_sector(self.pos())   
     }
 
